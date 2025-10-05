@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CRUD Foto</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 700px;
+        margin: 40px auto;
+        padding: 20px;
+      }
+      input,
+      textarea,
+      button {
+        display: block;
+        width: 100%;
+        margin-top: 10px;
+        padding: 8px;
+      }
+      img {
+        margin-top: 10px;
+        width: 100%;
+        max-height: 300px;
+        object-fit: cover;
+        border-radius: 8px;
+      }
+      .photo-item {
+        margin-top: 20px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 10px;
+      }
+      .photo-actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 10px;
+      }
+      .photo-actions button {
+        flex: 1;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>📸 CRUD Foto</h1>
+
+    <!-- Form upload / update -->
+    <form id="photoForm">
+      <input type="hidden" id="photoId" />
+      <input type="text" id="title" placeholder="Judul foto" required />
+      <textarea id="description" placeholder="Deskripsi foto"></textarea>
+      <input type="file" id="image" accept="image/*" />
+      <button type="submit">Upload</button>
+    </form>
+
+    <div id="result"></div>
+
+    <h2>🖼️ Daftar Foto</h2>
+    <div id="photos"></div>
+
+    <script>
+      const API_URL = "http://localhost:3000";
+      const form = document.getElementById("photoForm");
+      const result = document.getElementById("result");
+      const photosContainer = document.getElementById("photos");
+
+      // 🔹 Load semua foto
+      async function loadPhotos() {
+        const res = await fetch(`${API_URL}/photos`);
+        const photos = await res.json();
+        photosContainer.innerHTML = photos
+          .map(
+            (p) => `
+          <div class="photo-item">
+            <h3>${p.title}</h3>
+            <p>${p.description || ""}</p>
+            <img src="${API_URL}${p.imageUrl}" alt="${p.title}" />
+            <div class="photo-actions">
+              <button onclick="editPhoto(${p.id})">✏️ Edit</button>
+              <button onclick="deletePhoto(${p.id})">🗑️ Hapus</button>
+            </div>
+          </div>`
+          )
+          .join("");
+      }
+
+      // 🔹 Tambah atau Update Foto
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const id = document.getElementById("photoId").value;
+        const formData = new FormData();
+        formData.append("title", document.getElementById("title").value);
+        formData.append("description", document.getElementById("description").value);
+
+        const file = document.getElementById("image").files[0];
+        if (file) formData.append("image", file);
+
+        try {
+          const res = await fetch(
+            id ? `${API_URL}/photos/${id}` : `${API_URL}/photos`,
+            {
+              method: id ? "PUT" : "POST",
+              body: formData,
+            }
+          );
+
+          if (!res.ok) throw new Error("Gagal menyimpan foto");
+          const data = await res.json();
+          result.textContent = id
+            ? "✅ Foto berhasil diupdate!"
+            : "✅ Foto berhasil diupload!";
+          form.reset();
+          document.getElementById("photoId").value = "";
+          form.querySelector("button").textContent = "Upload";
+          loadPhotos();
+        } catch (err) {
+          result.textContent = "❌ " + err.message;
+        }
+      });
+
+      // 🔹 Hapus Foto
+      async function deletePhoto(id) {
+        if (!confirm("Yakin ingin menghapus foto ini?")) return;
+        try {
+          const res = await fetch(`${API_URL}/photos/${id}`, { method: "DELETE" });
+          if (!res.ok) throw new Error("Gagal menghapus foto");
+          result.textContent = "🗑️ Foto berhasil dihapus!";
+          loadPhotos();
+        } catch (err) {
+          result.textContent = "❌ " + err.message;
+        }
+      }
+
+      // 🔹 Edit Foto
+      async function editPhoto(id) {
+        const res = await fetch(`${API_URL}/photos/${id}`);
+        const photo = await res.json();
+
+        document.getElementById("photoId").value = photo.id;
+        document.getElementById("title").value = photo.title;
+        document.getElementById("description").value = photo.description || "";
+        form.querySelector("button").textContent = "Update";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      loadPhotos();
+      window.deletePhoto = deletePhoto;
+      window.editPhoto = editPhoto;
+    </script>
+  </body>
+</html>
