@@ -1,38 +1,26 @@
-# syntax=docker/dockerfile:1
+# Gunakan base image Node.js versi LTS (ringan dan stabil)
+FROM node:20-alpine
 
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Dockerfile reference guide at
-# https://docs.docker.com/go/dockerfile-reference/
+# Tentukan direktori kerja
+WORKDIR /app
 
-# Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
+# Salin package.json dan package-lock.json
+COPY package*.json ./
 
-ARG NODE_VERSION=24.7.0
+# Install semua dependencies (termasuk devDependencies seperti nodemon)
+RUN npm install
 
-FROM node:${NODE_VERSION}-alpine
-
-# Use production node environment by default.
-ENV NODE_ENV production
-
-
-WORKDIR /usr/src/app
-
-# Download dependencies as a separate step to take advantage of Docker's caching.
-# Leverage a cache mount to /root/.npm to speed up subsequent builds.
-# Leverage a bind mounts to package.json and package-lock.json to avoid having to copy them into
-# into this layer.
-RUN --mount=type=bind,source=package.json,target=package.json \
-    --mount=type=bind,source=package-lock.json,target=package-lock.json \
-    --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev
-
-# Run the application as a non-root user.
-USER node
-
-# Copy the rest of the source files into the image.
+# Salin seluruh source code
 COPY . .
 
-# Expose the port that the application listens on.
+# Pastikan folder uploads tersedia di dalam container
+RUN mkdir -p uploads
+
+# Generate Prisma client (biar siap sebelum runtime)
+RUN npx prisma generate
+
+# Expose port untuk aplikasi
 EXPOSE 3000
 
-# Run the application.
-CMD npm rundev
+# Jalankan Prisma migrate deploy + nodemon
+CMD npx prisma migrate deploy && npx nodemon server.js
